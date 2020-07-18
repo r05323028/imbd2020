@@ -6,12 +6,17 @@ verify_ssl = true
 [dev-packages]
 ipython = "*"
 jupyter = "*"
+plotly = "*"
+yapf = "*"
+pylint = "*"
+pytest = "*"
 
 [packages]
 numpy = "*"
 pandas = "*"
 xgboost = "*"
 seaborn = "*"
+sklearn = "*"
 
 [requires]
 python_version = "3.6"
