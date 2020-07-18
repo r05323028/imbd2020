@@ -6,4 +6,4 @@ def test_data():
     loader = DataLoader()
     df = loader.build_label_20_df()
     preprocessor = DataPreprocessor()
-    res = preprocessor.run(df)
+    res = preprocessor(df)

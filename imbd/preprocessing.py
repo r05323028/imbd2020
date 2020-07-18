@@ -23,11 +23,12 @@ class QuantizationTransformer(TransformerMixin):
         return df
 
 
-class DropNASelector(SelectorMixin):
+class FeaturesSelector(SelectorMixin):
     '''
-    Drop NA features (by column).
+    Drop NA & N-unique = 1 features (by column).
     '''
     na_count_threshold = 10
+    unique_count_threshold = 2
 
     def inverse_transform(self):
         return self
@@ -38,7 +39,11 @@ class DropNASelector(SelectorMixin):
     def fit(self, X, y=None):
         na_count = X.isnull().sum()
         mask = na_count[na_count < self.na_count_threshold].index
-        self.features_selector = mask
+        not_na_selector = mask
+        uniq = X.nunique()
+        not_uniq_selector = uniq[uniq > self.unique_count_threshold].index
+
+        self.features_selector = not_na_selector & not_uniq_selector
 
         return self
 

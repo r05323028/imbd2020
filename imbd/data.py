@@ -2,7 +2,7 @@ from typing import List
 import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
-from imbd.preprocessing import DropNASelector, QuantizationTransformer, FillNATransformer
+from imbd.preprocessing import FeaturesSelector, QuantizationTransformer, FillNATransformer
 
 
 class DataLoader:
@@ -113,7 +113,7 @@ class DataLoader:
 class DataPreprocessor:
     def __call__(self, df) -> pd.DataFrame:
         pipe = Pipeline(steps=[
-            ('drop_na_features', DropNASelector()),
+            ('features_select', FeaturesSelector()),
             ('quantization', QuantizationTransformer()),
             ('fill_na', FillNATransformer()),
         ],
