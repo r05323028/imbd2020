@@ -1,6 +1,6 @@
 from sklearn.feature_selection import SelectorMixin
 from sklearn.base import TransformerMixin
-from sklearn.impute import SimpleImputer
+from sklearn.impute import SimpleImputer, KNNImputer
 
 
 class QuantizationTransformer(TransformerMixin):
@@ -62,6 +62,7 @@ class FillNATransformer(TransformerMixin):
     def fit(self, X):
         self.mode_imputer = SimpleImputer(strategy='most_frequent')
         self.mean_imputer = SimpleImputer(strategy='mean')
+        self.knn_imputer = KNNImputer()
 
         return self
 
@@ -70,8 +71,14 @@ class FillNATransformer(TransformerMixin):
         float_columns = df.select_dtypes(include=["float"]).columns
         category_columns = df.select_dtypes(exclude=["int", "float"]).columns
 
-        df[float_columns] = self.mean_imputer.fit_transform(X[float_columns])
-        df[category_columns] = self.mode_imputer.fit_transform(
+        # simple imputer
+        # df[float_columns] = self.mean_imputer.fit_transform(X[float_columns])
+        # df[category_columns] = self.mode_imputer.fit_transform(
+        #     X[category_columns])
+
+        # knn imputer
+        df[float_columns] = self.knn_imputer.fit_transform(X[float_columns])
+        df[category_columns] = self.knn_imputer.fit_transform(
             X[category_columns])
 
         return df
