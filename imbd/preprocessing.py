@@ -63,26 +63,33 @@ class FillNATransformer(TransformerMixin):
         float, int -> mean
     '''
     def fit(self, X):
-        self.mode_imputer = SimpleImputer(strategy='most_frequent')
-        self.mean_imputer = SimpleImputer(strategy='mean')
-        self.knn_imputer = KNNImputer()
+        self.float_columns = X.select_dtypes(include=["float"]).columns
+        self.category_columns = X.select_dtypes(
+            exclude=["int", "float"]).columns
+        # self.mode_imputer = SimpleImputer(strategy='most_frequent')
+        # self.mean_imputer = SimpleImputer(strategy='mean')
+
+        # knn imputers
+        self.float_knn_imputer = KNNImputer()
+        self.category_knn_imputer = KNNImputer()
+        self.float_knn_imputer.fit(X[self.float_columns])
+        self.category_knn_imputer.fit(X[self.category_columns])
 
         return self
 
     def transform(self, X):
         df = X.copy()
-        float_columns = df.select_dtypes(include=["float"]).columns
-        category_columns = df.select_dtypes(exclude=["int", "float"]).columns
 
         # simple imputer
         # df[float_columns] = self.mean_imputer.fit_transform(X[float_columns])
         # df[category_columns] = self.mode_imputer.fit_transform(
         #     X[category_columns])
 
-        # knn imputer
-        df[float_columns] = self.knn_imputer.fit_transform(X[float_columns])
-        df[category_columns] = self.knn_imputer.fit_transform(
-            X[category_columns])
+        # knn transform
+        df[self.float_columns] = self.float_knn_imputer.transform(
+            X[self.float_columns])
+        df[self.category_columns] = self.category_knn_imputer.transform(
+            X[self.category_columns])
 
         return df
 
@@ -96,8 +103,9 @@ class OutlierDetector(TransformerMixin):
         # # self.iforest.fit(X)
         # self.iforest.fit(X[self.A_columns])
 
-        self.lof = LocalOutlierFactor(n_neighbors=10)
-        # self.lof.fit(X[self.A_columns])
+        # local outlier factor
+        self.lof = LocalOutlierFactor(n_neighbors=10, novelty=True)
+        self.lof.fit(X)
 
         return self
 
@@ -106,7 +114,7 @@ class OutlierDetector(TransformerMixin):
         # df['outlier'] = self.iforest.predict(X[self.A_columns])
         # df['outlier'] = self.iforest.predict(X)
 
-        df['outlier'] = self.lof.fit_predict(X)
+        df['outlier'] = self.lof.predict(X)
 
         return df
 
@@ -116,11 +124,11 @@ class VarianceFeatureSelector(TransformerMixin):
 
     def fit(self, X):
         self.selector = VarianceThreshold(self.threshold)
+        self.selector.fit(X)
 
         return self
 
     def transform(self, X):
         df = X.copy()
-        self.selector.fit(X)
 
         return df[df.columns[self.selector.get_support(indices=True)]]

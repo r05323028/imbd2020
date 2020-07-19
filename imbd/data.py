@@ -97,6 +97,9 @@ class DataLoader:
         return stack_drill_df
 
     def build_label_20_df(self) -> pd.DataFrame:
+        '''
+        Extract shift and drop rows missing labels.
+        '''
         df = self.raw_df.filter(regex=f"(Input_A[0-9]+_*|Input_C_*|Output_*)")
         df_ext = self.extract_shift(df)
         df_ret = pd.concat([df, df_ext], axis=1)
@@ -105,9 +108,15 @@ class DataLoader:
 
         return df_ret.iloc[label_not_na_rows].reset_index(drop=True)
 
-    def build(self, data_type: str = 'stack') -> pd.DataFrame:
+    def build(self, data_type: str = 'label_20') -> pd.DataFrame:
         if data_type == 'stack':
             return self.build_stack_drill_df()
+
+        elif data_type == 'label_20':
+            return self.build_label_20_df()
+
+        else:
+            raise Exception(f"Unrecognized data type: {data_type}.")
 
 
 class DataPreprocessor:
