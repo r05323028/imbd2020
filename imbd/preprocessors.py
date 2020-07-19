@@ -1,9 +1,10 @@
 from sklearn.feature_selection import SelectorMixin
-from sklearn.base import TransformerMixin
+from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.impute import SimpleImputer, KNNImputer
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
+from sklearn.pipeline import Pipeline
 
 
 class QuantizationTransformer(TransformerMixin):
@@ -62,7 +63,7 @@ class FillNATransformer(TransformerMixin):
         category -> mode
         float, int -> mean
     '''
-    def fit(self, X):
+    def fit(self, X, y=None):
         self.float_columns = X.select_dtypes(include=["float"]).columns
         self.category_columns = X.select_dtypes(
             exclude=["int", "float"]).columns
@@ -95,7 +96,7 @@ class FillNATransformer(TransformerMixin):
 
 
 class OutlierDetector(TransformerMixin):
-    def fit(self, X):
+    def fit(self, X, y=None):
         self.A_columns = X.filter(
             regex='(Input_A[0-9]+_[0-9]+|Output_A[0-9]+)').columns
 
@@ -119,10 +120,14 @@ class OutlierDetector(TransformerMixin):
         return df
 
 
-class VarianceFeatureSelector(TransformerMixin):
-    threshold = 0.2
+class VarianceFeatureSelector(TransformerMixin, BaseEstimator):
+    def __init__(self, threshold=0.0):
+        self.threshold = threshold
 
-    def fit(self, X):
+    def set_params(self, **params):
+        super(VarianceFeatureSelector, self).set_params(**params)
+
+    def fit(self, X, y=None):
         self.selector = VarianceThreshold(self.threshold)
         self.selector.fit(X)
 
@@ -132,3 +137,15 @@ class VarianceFeatureSelector(TransformerMixin):
         df = X.copy()
 
         return df[df.columns[self.selector.get_support(indices=True)]]
+
+
+class DataPreprocessor(Pipeline):
+    def __init__(self):
+        self.steps = [
+            ('features_select', FeaturesSelector()),
+            ('quantization', QuantizationTransformer()),
+            ('fill_na', FillNATransformer()),
+            ('variance_selector', VarianceFeatureSelector()),
+            ('outlier_detection', OutlierDetector()),
+        ]
+        super(DataPreprocessor, self).__init__(steps=self.steps)

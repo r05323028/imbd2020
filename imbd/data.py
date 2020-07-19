@@ -2,7 +2,7 @@ from typing import List
 import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
-from imbd.preprocessing import FeaturesSelector, QuantizationTransformer, FillNATransformer, OutlierDetector, VarianceFeatureSelector
+from imbd.preprocessors import FeaturesSelector, QuantizationTransformer, FillNATransformer, OutlierDetector, VarianceFeatureSelector
 
 
 class DataLoader:
@@ -117,21 +117,3 @@ class DataLoader:
 
         else:
             raise Exception(f"Unrecognized data type: {data_type}.")
-
-
-class DataPreprocessor:
-    def __init__(self):
-        self.pipe = Pipeline(steps=[
-            ('features_select', FeaturesSelector()),
-            ('quantization', QuantizationTransformer()),
-            ('fill_na', FillNATransformer()),
-            ('variance_selector', VarianceFeatureSelector()),
-            ('outlier_detection', OutlierDetector()),
-        ],
-                             verbose=True)
-
-    def __call__(self, df) -> pd.DataFrame:
-
-        out_df = self.pipe.fit_transform(df)
-
-        return out_df
