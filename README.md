@@ -4,6 +4,22 @@
 
 ### 2020-07-19
 
+#### Steps
+
+```python
+Pipeline(steps=[('features_select',
+                 <imbd.preprocessing.FeaturesSelector object at 0x10d5dad30>),
+                ('quantization',
+                 <imbd.preprocessing.QuantizationTransformer object at 0x121c2ffd0>),
+                ('fill_na',
+                 <imbd.preprocessing.FillNATransformer object at 0x121c2feb8>),
+                ('variance_selector',
+                 <imbd.preprocessing.VarianceFeatureSelector object at 0x10c092748>),
+                ('outlier_detection',
+                 <imbd.preprocessing.OutlierDetector object at 0x10b811898>)],
+         verbose=True)
+```
+
 #### Featrue Importances
 
 | Feature       |  Importance |

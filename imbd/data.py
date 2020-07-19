@@ -120,15 +120,18 @@ class DataLoader:
 
 
 class DataPreprocessor:
-    def __call__(self, df) -> pd.DataFrame:
-        pipe = Pipeline(steps=[
+    def __init__(self):
+        self.pipe = Pipeline(steps=[
             ('features_select', FeaturesSelector()),
             ('quantization', QuantizationTransformer()),
             ('fill_na', FillNATransformer()),
             ('variance_selector', VarianceFeatureSelector()),
             ('outlier_detection', OutlierDetector()),
         ],
-                        verbose=True)
-        out_df = pipe.fit_transform(df)
+                             verbose=True)
+
+    def __call__(self, df) -> pd.DataFrame:
+
+        out_df = self.pipe.fit_transform(df)
 
         return out_df
