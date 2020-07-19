@@ -2,7 +2,7 @@ from typing import List
 import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
-from imbd.preprocessing import FeaturesSelector, QuantizationTransformer, FillNATransformer
+from imbd.preprocessing import FeaturesSelector, QuantizationTransformer, FillNATransformer, OutlierDetector, VarianceFeatureSelector
 
 
 class DataLoader:
@@ -116,6 +116,8 @@ class DataPreprocessor:
             ('features_select', FeaturesSelector()),
             ('quantization', QuantizationTransformer()),
             ('fill_na', FillNATransformer()),
+            ('variance_selector', VarianceFeatureSelector()),
+            ('outlier_detection', OutlierDetector()),
         ],
                         verbose=True)
         out_df = pipe.fit_transform(df)

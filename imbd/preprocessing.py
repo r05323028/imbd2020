@@ -1,6 +1,9 @@
 from sklearn.feature_selection import SelectorMixin
 from sklearn.base import TransformerMixin
 from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.feature_selection import VarianceThreshold
+from sklearn.ensemble import IsolationForest
+from sklearn.neighbors import LocalOutlierFactor
 
 
 class QuantizationTransformer(TransformerMixin):
@@ -82,3 +85,42 @@ class FillNATransformer(TransformerMixin):
             X[category_columns])
 
         return df
+
+
+class OutlierDetector(TransformerMixin):
+    def fit(self, X):
+        self.A_columns = X.filter(
+            regex='(Input_A[0-9]+_[0-9]+|Output_A[0-9]+)').columns
+
+        # self.iforest = IsolationForest(n_estimators=1000)
+        # # self.iforest.fit(X)
+        # self.iforest.fit(X[self.A_columns])
+
+        self.lof = LocalOutlierFactor(n_neighbors=10)
+        # self.lof.fit(X[self.A_columns])
+
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        # df['outlier'] = self.iforest.predict(X[self.A_columns])
+        # df['outlier'] = self.iforest.predict(X)
+
+        df['outlier'] = self.lof.fit_predict(X)
+
+        return df
+
+
+class VarianceFeatureSelector(TransformerMixin):
+    threshold = 0.2
+
+    def fit(self, X):
+        self.selector = VarianceThreshold(self.threshold)
+
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        self.selector.fit(X)
+
+        return df[df.columns[self.selector.get_support(indices=True)]]
