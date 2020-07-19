@@ -10,6 +10,7 @@ plotly = "*"
 yapf = "*"
 pylint = "*"
 pytest = "*"
+tabulate = "*"
 
 [packages]
 numpy = "*"
