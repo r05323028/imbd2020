@@ -9,13 +9,13 @@ from imbd.preprocessors import DataPreprocessor
 def main():
     base_model = MultiOutputRegressor(XGBRegressor())
     param_grid = {
-        "prepro__variance_selector__threshold": [0.0, 0.01, 0.1],
-        "model__estimator__n_estimators": [100, 1000],
-        "model__estimator__max_depth": [2, 5, 10],
-        "model__estimator__alpha": [0, 0.1, 0.01],
-        "model__estimator__lambda": [1, 0.5, 0.1],
-        "model__estimator__subsample": [1, 0.5, 0.1],
-        "model__estimator__gamma": [0, 2, 10],
+        "prepro__variance_selector__threshold": [0.0, 0.01, 0.05],
+        "model__estimator__n_estimators": [1000],
+        "model__estimator__max_depth": [5, 10],
+        # "model__estimator__alpha": [0, 0.1, 0.01],
+        # "model__estimator__lambda": [1, 0.5, 0.1],
+        "model__estimator__subsample": [1, 0.5],
+        # "model__estimator__gamma": [0, 2, 10],
     }
 
     # initialization
@@ -32,10 +32,12 @@ def main():
     pipe = Pipeline(steps=steps)
 
     # training
-    trainer = ModelTrainer(pipe=pipe, param_grid=param_grid, verbose=True)
+    trainer = ModelTrainer(pipe=pipe, param_grid=param_grid, verbose=2)
     fitted = trainer.train(train_features, train_labels)
 
     print(trainer.training_result)
+    print(trainer.model.best_params_)
+    print(trainer.model.best_score_)
 
 
 if __name__ == '__main__':

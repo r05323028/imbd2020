@@ -9,6 +9,7 @@ __pycache__/
 *.csv
 
 .vscode
+.devcontainer
 
 # Distribution / packaging
 .Python

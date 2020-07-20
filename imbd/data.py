@@ -1,8 +1,6 @@
 from typing import List
 import numpy as np
 import pandas as pd
-from sklearn.pipeline import Pipeline
-from imbd.preprocessors import FeaturesSelector, QuantizationTransformer, FillNATransformer, OutlierDetector, VarianceFeatureSelector
 
 
 class DataLoader:

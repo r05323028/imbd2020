@@ -27,32 +27,24 @@ class QuantizationTransformer(TransformerMixin):
         return df
 
 
-class FeaturesSelector(SelectorMixin):
+class NADropper(TransformerMixin, BaseEstimator):
     '''
-    Drop NA & N-unique = 1 features (by column).
+    Drop NA features.
     '''
-    na_count_threshold = 10
-    unique_count_threshold = 2
+    def __init__(self, na_threshold=10):
+        self.na_threshold = na_threshold
 
-    def inverse_transform(self):
-        return self
-
-    def _get_support_mask(self):
-        return NotImplemented
+    def set_params(self, **params):
+        super(NADropper, self).set_params(**params)
 
     def fit(self, X, y=None):
         na_count = X.isnull().sum()
-        mask = na_count[na_count < self.na_count_threshold].index
-        not_na_selector = mask
-        uniq = X.nunique()
-        not_uniq_selector = uniq[uniq > self.unique_count_threshold].index
-
-        self.features_selector = not_na_selector & not_uniq_selector
+        self.not_na_selector = na_count[na_count < self.na_threshold].index
 
         return self
 
     def transform(self, X):
-        return X[self.features_selector]
+        return X[self.not_na_selector]
 
 
 class FillNATransformer(TransformerMixin):
@@ -142,7 +134,7 @@ class VarianceFeatureSelector(TransformerMixin, BaseEstimator):
 class DataPreprocessor(Pipeline):
     def __init__(self):
         self.steps = [
-            ('features_select', FeaturesSelector()),
+            ('drop_na_by_threshold', NADropper()),
             ('quantization', QuantizationTransformer()),
             ('fill_na', FillNATransformer()),
             ('variance_selector', VarianceFeatureSelector()),
