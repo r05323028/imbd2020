@@ -141,3 +141,6 @@ class DataPreprocessor(Pipeline):
             ('outlier_detection', OutlierDetector()),
         ]
         super(DataPreprocessor, self).__init__(steps=self.steps)
+
+    def fit(self, X, y=None, **fit_params):
+        super(DataPreprocessor, self).fit(X, y, **fit_params)

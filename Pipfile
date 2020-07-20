@@ -9,6 +9,7 @@ jupyter = "*"
 yapf = "*"
 pylint = "*"
 pytest = "*"
+ipykernel = "*"
 
 [packages]
 numpy = "*"
