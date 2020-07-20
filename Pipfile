@@ -1,0 +1,25 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+ipython = "*"
+jupyter = "*"
+yapf = "*"
+pylint = "*"
+pytest = "*"
+
+[packages]
+numpy = "*"
+pandas = "*"
+xgboost = "*"
+seaborn = "*"
+sklearn = "*"
+plotly = "*"
+tabulate = "*"
+eli5 = "*"
+tensorflow = "*"
+
+[requires]
+python_version = "3.6"
