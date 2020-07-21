@@ -10,6 +10,7 @@ yapf = "*"
 pylint = "*"
 pytest = "*"
 ipykernel = "*"
+yellowbrick = "*"
 
 [packages]
 numpy = "*"

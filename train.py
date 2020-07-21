@@ -1,13 +1,16 @@
-from xgboost import XGBRegressor
+from xgboost import XGBRegressor, XGBRFRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.multioutput import MultiOutputRegressor
+from sklearn.ensemble import VotingRegressor
 from imbd.trainers import ModelTrainer
 from imbd.data import DataLoader
 from imbd.preprocessors import DataPreprocessor
 
 
 def main():
-    base_model = MultiOutputRegressor(XGBRegressor())
+    base_model = VotingRegressor([('xgb', XGBRegressor()),
+                                  ('xgb_rf', XGBRFRegressor())])
+    multi_output_model = MultiOutputRegressor(base_model)
     param_grid = {
         "prepro__variance_selector__threshold": [0.0, 0.01, 0.05],
         "model__estimator__n_estimators": [1000],
@@ -28,12 +31,12 @@ def main():
     train_labels = df[loader.labels]
 
     # build pipeline
-    steps = [('prepro', preprocessor), ('model', base_model)]
+    steps = [('prepro', preprocessor), ('model', multi_output_model)]
     pipe = Pipeline(steps=steps)
 
     # training
     trainer = ModelTrainer(pipe=pipe, param_grid=param_grid, verbose=2)
-    fitted = trainer.train(train_features, train_labels)
+    fitted = trainer.fit(train_features, train_labels)
 
     print(trainer.training_result)
     print(trainer.model.best_params_)
