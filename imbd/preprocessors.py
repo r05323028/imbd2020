@@ -117,8 +117,6 @@ class OutlierDetector(TransformerMixin):
 
         df['outlier'] = self.lof.predict(X)
 
-        print(f'Columns remained: {df.columns.values}')
-
         return df
 
 
@@ -169,7 +167,6 @@ class NNFeatureEmbedder(TransformerMixin):
 
     def transform(self, X):
         df = X.copy()
-        pred = self.model.predict(X)
         n_cols = pred.shape[1]
         cols = [f'nn_embed_{i}' for i in range(n_cols)]
         df_ext = pd.DataFrame(pred, columns=cols)
@@ -191,6 +188,22 @@ class ShiftProcessor(TransformerMixin):
         return df
 
 
+class A020Processor(TransformerMixin):
+    def __init__(self):
+        pass
+
+    def fit(self, X, y=None):
+        self.a020_cols = X.filter(regex='Input_A[0-9]_020').columns
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        df['A_020_mean'] = X[self.a020_cols].mean(axis=1)
+        df['A_020_std'] = X[self.a020_cols].std(axis=1)
+
+        return df
+
+
 class DataPreprocessor(Pipeline):
     def __init__(self):
         self.steps = [
@@ -198,7 +211,8 @@ class DataPreprocessor(Pipeline):
             ('quantization', QuantizationTransformer()),
             ('shift_processor', ShiftProcessor()),
             ('fill_na', FillNATransformer()),
-            ('nn_embedder', NNFeatureEmbedder()),
+            ('a020_processor', A020Processor()),
+            # ('nn_embedder', NNFeatureEmbedder()),
             ('variance_selector', VarianceFeatureSelector()),
             ('outlier_detection', OutlierDetector()),
         ]
