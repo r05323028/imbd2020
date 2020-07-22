@@ -20,8 +20,8 @@ class ModelTrainer(BaseEstimator):
     def training_result(self):
         return pd.DataFrame(self.model.cv_results_)
 
-    def fit(self, X, y=None):
-        self.model.fit(X, y)
+    def fit(self, X, y=None, **fit_params):
+        self.model.fit(X, y, **fit_params)
 
         return self.model
 
