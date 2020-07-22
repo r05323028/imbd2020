@@ -3,6 +3,7 @@ from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.impute import SimpleImputer, KNNImputer
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.ensemble import IsolationForest
+from sklearn.preprocessing import Normalizer
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.pipeline import Pipeline
 import numpy as np
@@ -15,9 +16,10 @@ class QuantizationTransformer(TransformerMixin):
     '''
     Transform cells into pandas categorical dtype.
     '''
-    unique_count_threshold = 5
+    def __init__(self, unique_count_threshold=5):
+        self.unique_count_threshold = unique_count_threshold
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, **fit_params):
         uniq = X.nunique()
         mask = uniq[uniq < self.unique_count_threshold]
         self.quant_features = mask.index
@@ -41,7 +43,7 @@ class NADropper(TransformerMixin, BaseEstimator):
     def set_params(self, **params):
         super(NADropper, self).set_params(**params)
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, **fit_params):
         na_count = X.isnull().sum()
         self.not_na_selector = na_count[na_count < self.na_threshold].index
 
@@ -59,7 +61,7 @@ class FillNATransformer(TransformerMixin):
         category -> mode
         float, int -> mean
     '''
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, **fit_params):
         self.float_columns = X.select_dtypes(include=["float"]).columns
         self.category_columns = X.select_dtypes(
             exclude=["int", "float"]).columns
@@ -95,7 +97,7 @@ class OutlierDetector(TransformerMixin):
     def __init__(self, n_neighbors=10):
         self.n_neighbors = n_neighbors
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, **fit_params):
         self.A_columns = X.filter(
             regex='(Input_A[0-9]+_[0-9]+|Output_A[0-9]+)').columns
 
@@ -127,7 +129,7 @@ class VarianceFeatureSelector(TransformerMixin, BaseEstimator):
     def set_params(self, **params):
         super(VarianceFeatureSelector, self).set_params(**params)
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, **fit_params):
         self.selector = VarianceThreshold(self.threshold)
         self.selector.fit(X)
 
@@ -160,7 +162,7 @@ class NNFeatureEmbedder(TransformerMixin):
 
         return model
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, **fit_params):
         self.model.fit(X, y, verbose=0)
 
         return self
@@ -176,7 +178,7 @@ class NNFeatureEmbedder(TransformerMixin):
 
 
 class ShiftProcessor(TransformerMixin):
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, **fit_params):
         self.shift_cols = X.filter(regex="Input_C_[0-9]+_[xy]").columns
 
         return self
@@ -192,7 +194,7 @@ class A020Processor(TransformerMixin):
     def __init__(self):
         pass
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, **fit_params):
         self.a020_cols = X.filter(regex='Input_A[0-9]_020').columns
         return self
 
@@ -200,6 +202,23 @@ class A020Processor(TransformerMixin):
         df = X.copy()
         df['A_020_mean'] = X[self.a020_cols].mean(axis=1)
         df['A_020_std'] = X[self.a020_cols].std(axis=1)
+
+        return df
+
+
+class ColumnNormalizer(TransformerMixin):
+    def __init__(self):
+        self.normalizer = Normalizer()
+
+    def fit(self, X, y=None, **fit_params):
+        self.normalize_cols = X.filter(regex='Input_A[0-9]_[0-9]+').columns
+
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        df[self.normalize_cols] = self.normalizer.transform(
+            X[self.normalize_cols])
 
         return df
 
@@ -212,6 +231,7 @@ class DataPreprocessor(Pipeline):
             ('shift_processor', ShiftProcessor()),
             ('fill_na', FillNATransformer()),
             ('a020_processor', A020Processor()),
+            # ('normalizer', ColumnNormalizer()),
             # ('nn_embedder', NNFeatureEmbedder()),
             ('variance_selector', VarianceFeatureSelector()),
             ('outlier_detection', OutlierDetector()),

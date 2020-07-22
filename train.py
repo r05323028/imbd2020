@@ -34,11 +34,11 @@ def main():
                                   ('xgb_rf', XGBRFRegressor())])
     multi_output_model = MultiOutputRegressor(base_model)
     param_grid = {
-        "prepro__variance_selector__threshold": [0.0, 0.01],
-        # "voting__estimator__xgb__subsample": [1, 0.5],
-        # "voting__estimator__xgb__max_depth": [2, 6],
-        # "voting__estimator__xgb_rf__max_depth": [2, 6],
-        # "voting__estimator__xgb_rf__subsample": [1, 0.5],
+        "prepro__variance_selector__threshold": [0.0],
+        "voting__estimator__xgb__subsample": [1, 0.5],
+        "voting__estimator__xgb__max_depth": [2, 6],
+        "voting__estimator__xgb_rf__max_depth": [2, 6, 10],
+        "voting__estimator__xgb_rf__subsample": [1, 0.5],
         "voting__estimator__xgb__n_estimators": [1000],
         "voting__estimator__xgb_rf__n_estimators": [1000],
     }
