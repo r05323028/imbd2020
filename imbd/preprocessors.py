@@ -5,6 +5,10 @@ from sklearn.feature_selection import VarianceThreshold
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.pipeline import Pipeline
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow.keras.wrappers.scikit_learn import KerasRegressor
 
 
 class QuantizationTransformer(TransformerMixin):
@@ -88,6 +92,9 @@ class FillNATransformer(TransformerMixin):
 
 
 class OutlierDetector(TransformerMixin):
+    def __init__(self, n_neighbors=10):
+        self.n_neighbors = n_neighbors
+
     def fit(self, X, y=None):
         self.A_columns = X.filter(
             regex='(Input_A[0-9]+_[0-9]+|Output_A[0-9]+)').columns
@@ -97,7 +104,8 @@ class OutlierDetector(TransformerMixin):
         # self.iforest.fit(X[self.A_columns])
 
         # local outlier factor
-        self.lof = LocalOutlierFactor(n_neighbors=10, novelty=True)
+        self.lof = LocalOutlierFactor(n_neighbors=self.n_neighbors,
+                                      novelty=True)
         self.lof.fit(X)
 
         return self
@@ -131,13 +139,84 @@ class VarianceFeatureSelector(TransformerMixin, BaseEstimator):
         return df[df.columns[self.selector.get_support(indices=True)]]
 
 
+class NNFeatureEmbedder(TransformerMixin):
+    def __init__(self, dropout_rate=0.3):
+        self.model = KerasRegressor(build_fn=self.create_model, epochs=30)
+
+    @staticmethod
+    def create_model(dropout_rate=0.3):
+        model = tf.keras.Sequential()
+        model.add(tf.keras.layers.Dense(128, activation='relu'))
+        model.add(tf.keras.layers.Dense(128, activation='relu'))
+        model.add(tf.keras.layers.Dropout(dropout_rate))
+        model.add(tf.keras.layers.Dense(64, activation='relu'))
+        model.add(tf.keras.layers.Dense(64, activation='relu'))
+        model.add(tf.keras.layers.Dropout(dropout_rate))
+        model.add(tf.keras.layers.Dense(64, activation='relu'))
+        model.add(tf.keras.layers.Dense(32, activation='relu'))
+        model.add(tf.keras.layers.Dense(32, activation='relu'))
+        model.add(tf.keras.layers.Dense(20))
+        model.compile(loss='mse', optimizer='adam')
+
+        return model
+
+    def fit(self, X, y=None):
+        self.model.fit(X, y, verbose=0)
+
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        n_cols = pred.shape[1]
+        cols = [f'nn_embed_{i}' for i in range(n_cols)]
+        df_ext = pd.DataFrame(pred, columns=cols)
+        df_ret = pd.concat([df.reset_index(), df_ext], axis=1)
+
+        return df_ret
+
+
+class ShiftProcessor(TransformerMixin):
+    def fit(self, X, y=None):
+        self.shift_cols = X.filter(regex="Input_C_[0-9]+_[xy]").columns
+
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        df[self.shift_cols] = np.abs(X[self.shift_cols])
+
+        return df
+
+
+class A020Processor(TransformerMixin):
+    def __init__(self):
+        pass
+
+    def fit(self, X, y=None):
+        self.a020_cols = X.filter(regex='Input_A[0-9]_020').columns
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        df['A_020_mean'] = X[self.a020_cols].mean(axis=1)
+        df['A_020_std'] = X[self.a020_cols].std(axis=1)
+
+        return df
+
+
 class DataPreprocessor(Pipeline):
     def __init__(self):
         self.steps = [
             ('drop_na_by_threshold', NADropper()),
             ('quantization', QuantizationTransformer()),
+            ('shift_processor', ShiftProcessor()),
             ('fill_na', FillNATransformer()),
+            ('a020_processor', A020Processor()),
+            # ('nn_embedder', NNFeatureEmbedder()),
             ('variance_selector', VarianceFeatureSelector()),
             ('outlier_detection', OutlierDetector()),
         ]
         super(DataPreprocessor, self).__init__(steps=self.steps)
+
+    def fit(self, X, y=None, **fit_params):
+        super(DataPreprocessor, self).fit(X, y, **fit_params)

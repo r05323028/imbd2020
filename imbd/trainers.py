@@ -1,25 +1,29 @@
 import pandas as pd
+from sklearn.base import BaseEstimator
 from sklearn.metrics import make_scorer, mean_squared_error
 from sklearn.model_selection import GridSearchCV
 
 
-class ModelTrainer:
+class ModelTrainer(BaseEstimator):
     def __init__(self, pipe, param_grid, verbose=0, cv=3):
-        self.scorer = make_scorer(mean_squared_error, squared=False)
+        self.scorer = make_scorer(mean_squared_error,
+                                  squared=True,
+                                  greater_is_better=False)
         self.model = GridSearchCV(pipe,
                                   param_grid,
                                   cv=cv,
                                   verbose=verbose,
-                                  scoring=self.scorer)
+                                  return_train_score=True,
+                                  scoring='neg_root_mean_squared_error')
 
     @property
     def training_result(self):
         return pd.DataFrame(self.model.cv_results_)
 
-    def train(self, features, labels):
-        self.model.fit(features, labels)
+    def fit(self, X, y=None):
+        self.model.fit(X, y)
 
         return self.model
 
-    def predict(self, features):
-        return self.model.predict(features)
+    def predict(self, X):
+        return self.model.predict(X)
