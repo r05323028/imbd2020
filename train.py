@@ -3,7 +3,7 @@ import joblib
 
 from xgboost import XGBRegressor, XGBRFRegressor
 from sklearn.pipeline import Pipeline
-from sklearn.multioutput import MultiOutputRegressor
+from sklearn.multioutput import RegressorChain
 from sklearn.ensemble import VotingRegressor
 import numpy as np
 import pandas as pd
@@ -32,15 +32,23 @@ def main():
     logger.info("Start Training.")
     base_model = VotingRegressor([('xgb', XGBRegressor()),
                                   ('xgb_rf', XGBRFRegressor())])
-    multi_output_model = MultiOutputRegressor(base_model)
+    order = [0, 2, 5, 7, 13, 14, 16, 17
+             ] + [1, 3, 4, 6, 8, 9, 11, 12, 15, 18, 19] + [10]
+    multi_output_model = RegressorChain(base_model, order=order)
     param_grid = {
         "prepro__variance_selector__threshold": [0.0],
-        "voting__estimator__xgb__subsample": [1, 0.5],
-        "voting__estimator__xgb__max_depth": [2, 6],
-        "voting__estimator__xgb_rf__max_depth": [2, 6, 10],
-        "voting__estimator__xgb_rf__subsample": [1, 0.5],
-        "voting__estimator__xgb__n_estimators": [1000],
-        "voting__estimator__xgb_rf__n_estimators": [1000],
+        "prepro__cluster_maker__n_cluster": [10, 15],
+        # "prepro__pca_embedder__n_comp": [2, 5],
+        "voting__base_estimator__xgb__subsample": [1, 0.5],
+        "voting__base_estimator__xgb__max_depth": [2, 6],
+        "voting__base_estimator__xgb__colsample_bytree": [1, 0.5],
+        "voting__base_estimator__xgb__colsample_bylevel": [1, 0.5],
+        "voting__base_estimator__xgb__colsample_bynode": [1, 0.5],
+        "voting__base_estimator__xgb_rf__max_depth": [2, 6],
+        "voting__base_estimator__xgb_rf__subsample": [1, 0.5],
+        "voting__base_estimator__weights": [[0.4, 0.6], [0.5, 0.5]],
+        "voting__base_estimator__xgb__n_estimators": [1000, 10000],
+        "voting__base_estimator__xgb_rf__n_estimators": [1000, 10000],
     }
 
     # initialization
