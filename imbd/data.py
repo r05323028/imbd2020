@@ -15,8 +15,11 @@ class DataLoader:
                   ] + [f'Input_C_{i:03d}' for i in range(63, 83)]
     drill_cols = [f'Output_A{i}' for i in range(1, 7)]
 
-    def __init__(self, data_fp: str = 'data/0714train.csv'):
+    def __init__(self,
+                 data_fp: str = 'data/0714train.csv',
+                 data_type: str = 'train'):
         self.data_fp = data_fp
+        self.data_type = data_type
         self.raw_df = pd.read_csv(data_fp)
 
     def shift_parser(self, shift) -> List:
@@ -102,9 +105,13 @@ class DataLoader:
         df_ext = self.extract_shift(df)
         df_ret = pd.concat([df, df_ext], axis=1)
         df_ret = df_ret.drop(self.shift_cols, axis=1)
-        label_not_na_rows = df_ret[self.labels].dropna().index
 
-        return df_ret.iloc[label_not_na_rows].reset_index(drop=True)
+        if self.data_type == 'train':
+            label_not_na_rows = df_ret[self.labels].dropna().index
+            return df_ret.iloc[label_not_na_rows].reset_index(drop=True)
+
+        else:
+            return df_ret.reset_index(drop=True)
 
     def build(self, data_type: str = 'label_20') -> pd.DataFrame:
         if data_type == 'stack':

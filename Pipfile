@@ -22,6 +22,7 @@ plotly = "*"
 tabulate = "*"
 eli5 = "*"
 tensorflow = "*"
+openpyxl = "*"
 
 [requires]
 python_version = "3.6"

@@ -54,6 +54,22 @@ class NADropper(TransformerMixin, BaseEstimator):
         return X[self.not_na_selector]
 
 
+class NAAnnotationTransformer(TransformerMixin):
+    '''
+    Annotate whether Input_C_083 ~ Input_C_091 is na.
+    '''
+    def fit(self, X, y=None, **fit_params):
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        df['massive_missing'] = df[[
+            f'Input_C_{col:03d}' for col in range(83, 92)
+        ]].isna().sum(axis=1) > 0
+        df['massive_missing'] = df['massive_missing'].astype('float')
+        return df
+
+
 class FillNATransformer(TransformerMixin):
     '''
     Filling na cells.
@@ -63,17 +79,17 @@ class FillNATransformer(TransformerMixin):
         float, int -> mean
     '''
     def fit(self, X, y=None, **fit_params):
-        self.float_columns = X.select_dtypes(include=["float"]).columns
-        self.category_columns = X.select_dtypes(
-            exclude=["int", "float"]).columns
+        # self.float_columns = X.select_dtypes(include=["float"]).columns
+        # self.category_columns = X.select_dtypes(
+        #     exclude=["int", "float"]).columns
         # self.mode_imputer = SimpleImputer(strategy='most_frequent')
         # self.mean_imputer = SimpleImputer(strategy='mean')
 
         # knn imputers
-        self.float_knn_imputer = KNNImputer()
-        self.category_knn_imputer = KNNImputer()
-        self.float_knn_imputer.fit(X[self.float_columns])
-        self.category_knn_imputer.fit(X[self.category_columns])
+        self.knn_imputer = KNNImputer()
+        # self.category_knn_imputer = KNNImputer()
+        self.knn_imputer.fit(X)
+        # self.category_knn_imputer.fit(X[self.category_columns])
 
         return self
 
@@ -86,10 +102,12 @@ class FillNATransformer(TransformerMixin):
         #     X[category_columns])
 
         # knn transform
-        df[self.float_columns] = self.float_knn_imputer.transform(
-            X[self.float_columns])
-        df[self.category_columns] = self.category_knn_imputer.transform(
-            X[self.category_columns])
+        # df[self.float_columns] = self.float_knn_imputer.transform(
+        #     X[self.float_columns])
+        # df[self.category_columns] = self.category_knn_imputer.transform(
+        #     X[self.category_columns])
+        df = pd.DataFrame(self.knn_imputer.transform(X))
+        df.columns = X.columns
 
         return df
 
@@ -289,12 +307,13 @@ class ColumnNormalizer(TransformerMixin):
 class DataPreprocessor(Pipeline):
     def __init__(self):
         self.steps = [
-            ('drop_na_by_threshold', NADropper()),
+            # ('drop_na_by_threshold', NADropper()),
+            ('variance_selector', VarianceFeatureSelector()),
+            ('na_annotation', NAAnnotationTransformer()),
             ('quantization', QuantizationTransformer()),
             ('shift_processor', ShiftProcessor()),
             ('fill_na', FillNATransformer()),
             ('a020_processor', A020Processor()),
-            ('variance_selector', VarianceFeatureSelector()),
             ('outlier_detection', OutlierDetector()),
             ('cluster_maker', ClusterTransformer()),
         ]
