@@ -8,7 +8,9 @@ __pycache__/
 # C extensions
 *.so
 
-*.csv
+
+models/*
+
 
 .vscode
 .devcontainer
@@ -134,3 +136,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+!.gitkeep
