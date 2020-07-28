@@ -2,9 +2,10 @@ from sklearn.feature_selection import SelectorMixin
 from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.impute import SimpleImputer, KNNImputer
 from sklearn.feature_selection import VarianceThreshold
+from sklearn.cluster import KMeans
 from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import Normalizer
-from sklearn.neighbors import LocalOutlierFactor
+from sklearn.preprocessing import Normalizer, OneHotEncoder
+from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 import numpy as np
 import pandas as pd
@@ -53,6 +54,22 @@ class NADropper(TransformerMixin, BaseEstimator):
         return X[self.not_na_selector]
 
 
+class NAAnnotationTransformer(TransformerMixin):
+    '''
+    Annotate whether Input_C_083 ~ Input_C_091 is na.
+    '''
+    def fit(self, X, y=None, **fit_params):
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        df['massive_missing'] = df[[
+            f'Input_C_{col:03d}' for col in range(83, 92)
+        ]].isna().sum(axis=1) > 0
+        df['massive_missing'] = df['massive_missing'].astype('float')
+        return df
+
+
 class FillNATransformer(TransformerMixin):
     '''
     Filling na cells.
@@ -62,17 +79,17 @@ class FillNATransformer(TransformerMixin):
         float, int -> mean
     '''
     def fit(self, X, y=None, **fit_params):
-        self.float_columns = X.select_dtypes(include=["float"]).columns
-        self.category_columns = X.select_dtypes(
-            exclude=["int", "float"]).columns
+        # self.float_columns = X.select_dtypes(include=["float"]).columns
+        # self.category_columns = X.select_dtypes(
+        #     exclude=["int", "float"]).columns
         # self.mode_imputer = SimpleImputer(strategy='most_frequent')
         # self.mean_imputer = SimpleImputer(strategy='mean')
 
         # knn imputers
-        self.float_knn_imputer = KNNImputer()
-        self.category_knn_imputer = KNNImputer()
-        self.float_knn_imputer.fit(X[self.float_columns])
-        self.category_knn_imputer.fit(X[self.category_columns])
+        self.knn_imputer = KNNImputer()
+        # self.category_knn_imputer = KNNImputer()
+        self.knn_imputer.fit(X)
+        # self.category_knn_imputer.fit(X[self.category_columns])
 
         return self
 
@@ -85,39 +102,100 @@ class FillNATransformer(TransformerMixin):
         #     X[category_columns])
 
         # knn transform
-        df[self.float_columns] = self.float_knn_imputer.transform(
-            X[self.float_columns])
-        df[self.category_columns] = self.category_knn_imputer.transform(
-            X[self.category_columns])
+        # df[self.float_columns] = self.float_knn_imputer.transform(
+        #     X[self.float_columns])
+        # df[self.category_columns] = self.category_knn_imputer.transform(
+        #     X[self.category_columns])
+        df = pd.DataFrame(self.knn_imputer.transform(X))
+        df.columns = X.columns
 
         return df
 
 
 class OutlierDetector(TransformerMixin):
-    def __init__(self, n_neighbors=10):
-        self.n_neighbors = n_neighbors
-
     def fit(self, X, y=None, **fit_params):
-        self.A_columns = X.filter(
-            regex='(Input_A[0-9]+_[0-9]+|Output_A[0-9]+)').columns
+        self.A020_columns = X.filter(regex='Input_A[0-9]+_020').columns
 
-        # self.iforest = IsolationForest(n_estimators=1000)
-        # # self.iforest.fit(X)
-        # self.iforest.fit(X[self.A_columns])
-
-        # local outlier factor
-        self.lof = LocalOutlierFactor(n_neighbors=self.n_neighbors,
-                                      novelty=True)
-        self.lof.fit(X)
+        self.iforest = IsolationForest(n_estimators=1000)
+        self.iforest.fit(X[self.A020_columns])
 
         return self
 
     def transform(self, X):
         df = X.copy()
-        # df['outlier'] = self.iforest.predict(X[self.A_columns])
-        # df['outlier'] = self.iforest.predict(X)
 
-        df['outlier'] = self.lof.predict(X)
+        df['outlier'] = self.iforest.predict(X[self.A020_columns])
+
+        return df
+
+
+class A020Grouper(TransformerMixin):
+    def __init__(self, n_groups: int = 2):
+        self.n_groups = n_groups
+
+    def fit(self, X, y=None, **fit_params):
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        # groups = pd.cut(X['A_020_mean'],
+        #                 self.n_groups,
+        #                 labels=list(range(self.n_groups)))
+
+        groups = [1 if val > 2 else 0 for val in X['A_020_mean'].values]
+        groups = tf.one_hot(groups, depth=self.n_groups)
+        groups = pd.DataFrame(
+            groups.numpy(),
+            columns=[f'A_020_group_{i}' for i in range(self.n_groups)])
+        groups.index = df.index
+        df = pd.concat([df, groups], axis=1)
+
+        return df
+
+
+class ClusterTransformer(TransformerMixin, BaseEstimator):
+    def __init__(self, n_cluster: int = 3):
+        self.n_cluster = n_cluster
+
+    def set_params(self, **params):
+        super(ClusterTransformer, self).set_params(**params)
+
+    def fit(self, X, y=None, **fit_params):
+        self.model = KMeans(self.n_cluster)
+        self.model.fit(X)
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        clusters = self.model.predict(X)
+        clusters = tf.one_hot(clusters, depth=self.n_cluster)
+        clusters = pd.DataFrame(
+            clusters.numpy(),
+            columns=[f'cluster_{i}' for i in range(self.n_cluster)])
+        clusters.index = df.index
+        df = pd.concat([df, clusters], axis=1)
+
+        return df
+
+
+class PcaEmbedder(TransformerMixin, BaseEstimator):
+    def __init__(self, n_comp: int = 2):
+        self.n_comp = n_comp
+
+    def set_params(self, **params):
+        super(PcaEmbedder, self).set_params(**params)
+
+    def fit(self, X, y=None, **fit_params):
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        self.model = PCA(self.n_comp)
+        comp = self.model.fit_transform(X)
+        comp = pd.DataFrame(comp,
+                            columns=[f'comp_{i}' for i in range(self.n_comp)])
+        comp.index = df.index
+        df = pd.concat([df, comp], axis=1)
 
         return df
 
@@ -172,7 +250,8 @@ class NNFeatureEmbedder(TransformerMixin):
         n_cols = pred.shape[1]
         cols = [f'nn_embed_{i}' for i in range(n_cols)]
         df_ext = pd.DataFrame(pred, columns=cols)
-        df_ret = pd.concat([df.reset_index(), df_ext], axis=1)
+        df_ext.index = df.index
+        df_ret = pd.concat([df, df_ext], axis=1)
 
         return df_ret
 
@@ -202,6 +281,8 @@ class A020Processor(TransformerMixin):
         df = X.copy()
         df['A_020_mean'] = X[self.a020_cols].mean(axis=1)
         df['A_020_std'] = X[self.a020_cols].std(axis=1)
+        df['A_020_min'] = X[self.a020_cols].min(axis=1)
+        df['A_020_max'] = X[self.a020_cols].max(axis=1)
 
         return df
 
@@ -226,15 +307,15 @@ class ColumnNormalizer(TransformerMixin):
 class DataPreprocessor(Pipeline):
     def __init__(self):
         self.steps = [
-            ('drop_na_by_threshold', NADropper()),
+            # ('drop_na_by_threshold', NADropper()),
+            ('variance_selector', VarianceFeatureSelector()),
+            ('na_annotation', NAAnnotationTransformer()),
             ('quantization', QuantizationTransformer()),
             ('shift_processor', ShiftProcessor()),
             ('fill_na', FillNATransformer()),
             ('a020_processor', A020Processor()),
-            # ('normalizer', ColumnNormalizer()),
-            # ('nn_embedder', NNFeatureEmbedder()),
-            ('variance_selector', VarianceFeatureSelector()),
             ('outlier_detection', OutlierDetector()),
+            ('cluster_maker', ClusterTransformer()),
         ]
         super(DataPreprocessor, self).__init__(steps=self.steps)
 

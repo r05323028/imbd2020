@@ -1,9 +1,9 @@
-import logging
+from argparse import ArgumentParser
 import joblib
 
 from xgboost import XGBRegressor, XGBRFRegressor
 from sklearn.pipeline import Pipeline
-from sklearn.multioutput import MultiOutputRegressor
+from sklearn.multioutput import RegressorChain
 from sklearn.ensemble import VotingRegressor
 import numpy as np
 import pandas as pd
@@ -14,37 +14,46 @@ from imbd.data import DataLoader
 from imbd.preprocessors import DataPreprocessor
 from imbd.models import KerasModel
 from imbd.inspectors import RegressionReport
+from imbd.utils import get_logger
 
 
-def get_logger():
-    logger = logging.getLogger(name='imbd2020')
-    stream_handler = logging.StreamHandler()
-    fmt = logging.Formatter(
-        fmt='%(asctime)s | %(name)s | %(levelname)s | %(message)s')
-    stream_handler.setFormatter(fmt)
-    logger.addHandler(stream_handler)
-    logger.setLevel(logging.INFO)
-    return logger
+def get_args():
+    arg_parser = ArgumentParser()
+    arg_parser.add_argument('--file_path',
+                            default='data/0714train.csv',
+                            help='Data file path.',
+                            type=str)
+    return arg_parser.parse_args()
 
 
-def main():
+def main(args):
     logger = get_logger()
     logger.info("Start Training.")
     base_model = VotingRegressor([('xgb', XGBRegressor()),
                                   ('xgb_rf', XGBRFRegressor())])
-    multi_output_model = MultiOutputRegressor(base_model)
-    param_grid = {
-        "prepro__variance_selector__threshold": [0.0],
-        "voting__estimator__xgb__subsample": [1, 0.5],
-        "voting__estimator__xgb__max_depth": [2, 6],
-        "voting__estimator__xgb_rf__max_depth": [2, 6, 10],
-        "voting__estimator__xgb_rf__subsample": [1, 0.5],
-        "voting__estimator__xgb__n_estimators": [1000],
-        "voting__estimator__xgb_rf__n_estimators": [1000],
-    }
+    order = [0, 2, 5, 7, 13, 14, 16, 17
+             ] + [1, 3, 4, 6, 8, 9, 11, 12, 15, 18, 19] + [10]
+    multi_output_model = RegressorChain(base_model, order=order)
+    param_grid = {}
+
+    # param_grid = {
+    #     "prepro__variance_selector__threshold": [0.0],
+    #     "prepro__cluster_maker__n_cluster": [10, 15],
+    #     # "prepro__pca_embedder__n_comp": [2, 5],
+    #     "voting__base_estimator__xgb__subsample": [1, 0.5],
+    #     "voting__base_estimator__xgb__max_depth": [2, 6],
+    #     "voting__base_estimator__xgb__colsample_bytree": [1, 0.5],
+    #     "voting__base_estimator__xgb__colsample_bylevel": [1, 0.5],
+    #     "voting__base_estimator__xgb__colsample_bynode": [1, 0.5],
+    #     "voting__base_estimator__xgb_rf__max_depth": [2, 6],
+    #     "voting__base_estimator__xgb_rf__subsample": [1, 0.5],
+    #     "voting__base_estimator__weights": [[0.4, 0.6], [0.5, 0.5]],
+    #     "voting__base_estimator__xgb__n_estimators": [1000, 10000],
+    #     "voting__base_estimator__xgb_rf__n_estimators": [1000, 10000],
+    # }
 
     # initialization
-    loader = DataLoader()
+    loader = DataLoader(data_fp=args.file_path)
     prepro = DataPreprocessor()
     df = loader.build()
 
@@ -71,4 +80,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    args = get_args()
+    main(args)
