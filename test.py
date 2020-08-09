@@ -19,6 +19,10 @@ def get_args():
                             default='models/model.pkl',
                             help='Model file path.',
                             type=str)
+    arg_parser.add_argument('--preprocessor_path',
+                            default='models/preprocessor.pkl',
+                            help='Preprocessor file path.',
+                            type=str)
     return arg_parser.parse_args()
 
 
@@ -30,8 +34,12 @@ def main(args):
     with open(args.model_path, 'rb') as file:
         model = joblib.load(file)
 
+    with open(args.preprocessor_path, 'rb') as file:
+        prepro = joblib.load(file)
+
     loader = DataLoader(args.file_path, data_type='test')
     test_features = loader.build()
+    test_features = prepro.transform(test_features)
     pred = model.predict(test_features)
     pred = pd.DataFrame(pred, columns=loader.labels)
 

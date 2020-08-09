@@ -17,12 +17,20 @@ numpy = "*"
 pandas = "*"
 xgboost = "*"
 seaborn = "*"
-sklearn = "*"
 plotly = "*"
 tabulate = "*"
 eli5 = "*"
 tensorflow = "*"
 openpyxl = "*"
+missingno = "*"
+sweetviz = "*"
+pandas-profiling = {extras = ["notebook"], version = "*"}
+lightgbm = "*"
+sklearn = "*"
+scikit-learn = "==0.23.1"
 
 [requires]
 python_version = "3.6"
+
+[pipenv]
+allow_prereleases = true
