@@ -5,11 +5,11 @@ from sklearn.model_selection import GridSearchCV
 
 
 class ModelTrainer(BaseEstimator):
-    def __init__(self, pipe, param_grid, verbose=0, cv=3):
+    def __init__(self, base_model, param_grid, verbose=0, cv=3):
         self.scorer = make_scorer(mean_squared_error,
                                   squared=True,
                                   greater_is_better=False)
-        self.model = GridSearchCV(pipe,
+        self.model = GridSearchCV(base_model,
                                   param_grid,
                                   cv=cv,
                                   verbose=verbose,

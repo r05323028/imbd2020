@@ -17,41 +17,100 @@ class QuantizationTransformer(TransformerMixin):
     '''
     Transform cells into pandas categorical dtype.
     '''
-    def __init__(self, unique_count_threshold=5):
-        self.unique_count_threshold = unique_count_threshold
+    one_hot_cols = {
+        'Input_A3_010': 2,
+        'Input_A4_008': 2,
+        'Input_A1_008': 2,
+        'Input_A6_008': 3,
+        'Input_A5_008': 3,
+        'Input_A1_023': 3,
+        'Input_A3_009': 4,
+        'Input_A4_009': 4,
+        'Input_A2_013': 4,
+        'Input_A4_014': 4,
+        'Input_A3_008': 4,
+        'Input_A3_014': 4,
+        'Input_A1_013': 4,
+        'Input_A1_009': 4,
+        'Input_A5_009': 4,
+        'Input_A5_013': 4,
+        'Input_A1_014': 4,
+        'Input_A6_009': 5,
+        'Input_A6_013': 5,
+        'Input_A2_019': 5,
+        'Input_A5_016': 5,
+        'Input_A4_013': 5,
+        'Input_A4_016': 5,
+        'Input_A4_017': 5,
+        'Input_A4_018': 5,
+        'Input_A4_019': 5,
+        'Input_A5_019': 5,
+        'Input_A5_018': 5,
+        'Input_A5_014': 5,
+        'Input_A3_019': 5,
+        'Input_A2_018': 5,
+        'Input_A5_017': 5,
+        'Input_A2_014': 5,
+        'Input_A6_018': 5,
+        'Input_A1_016': 5,
+        'Input_A1_017': 5,
+        'Input_A1_018': 5,
+        'Input_A1_019': 5,
+        'Input_A6_017': 5,
+        'Input_A1_022': 5,
+        'Input_A6_016': 5,
+        'Input_A6_014': 5,
+        'Input_A2_009': 5,
+        'Input_A1_024': 6,
+        'Input_A3_011': 7,
+        'Input_A2_003': 7,
+        'Input_A5_011': 8,
+        'Input_A3_003': 8,
+        'Input_A2_023': 8,
+        'Input_A4_003': 8,
+        'Input_A5_003': 8,
+        'Input_A3_004': 9,
+        'Input_A5_024': 9,
+        'Input_A4_011': 9,
+        'Input_A2_011': 9,
+        'Input_A5_004': 9,
+        'Input_A1_011': 9,
+        'Input_A2_012': 9,
+        'Input_A6_022': 9,
+        'Input_A5_022': 9,
+        'Input_A6_003': 9,
+        'Input_A2_022': 9,
+        'Input_A2_001': 9
+    }
 
     def fit(self, X, y=None, **fit_params):
-        uniq = X.nunique()
-        mask = uniq[uniq < self.unique_count_threshold]
-        self.quant_features = mask.index
 
         return self
 
     def transform(self, X):
         df = X.copy()
-        df[self.quant_features] = X[self.quant_features].astype('category')
+        dfs = []
+        temp_cols = {}
+        intersec = list(set(X.columns) & set(self.one_hot_cols.keys()))
 
+        for col in intersec:
+            temp_cols[col] = self.one_hot_cols[col]
+
+        target_df = X[temp_cols]
+        target_df = target_df.astype('category')
+
+        for col, depth in temp_cols.items():
+            feature_names = [f'{col}_one_hot_{i}' for i in range(depth)]
+            one_hot = tf.one_hot(target_df[col], depth=depth)
+            one_hot_df = pd.DataFrame(one_hot.numpy(),
+                                      columns=feature_names,
+                                      index=target_df.index)
+            dfs.append(one_hot_df)
+
+        df_one_hot = pd.concat(dfs, axis=1)
+        df_ret = pd.concat([df, df_one_hot], axis=1)
+        # df_ret = df_ret.drop(intersec, axis=1)
         return df
-
-
-class NADropper(TransformerMixin, BaseEstimator):
-    '''
-    Drop NA features.
-    '''
-    def __init__(self, na_threshold=10):
-        self.na_threshold = na_threshold
-
-    def set_params(self, **params):
-        super(NADropper, self).set_params(**params)
-
-    def fit(self, X, y=None, **fit_params):
-        na_count = X.isnull().sum()
-        self.not_na_selector = na_count[na_count < self.na_threshold].index
-
-        return self
-
-    def transform(self, X):
-        return X[self.not_na_selector]
 
 
 class NAAnnotationTransformer(TransformerMixin):
@@ -114,7 +173,7 @@ class FillNATransformer(TransformerMixin):
 
 class OutlierDetector(TransformerMixin):
     def fit(self, X, y=None, **fit_params):
-        self.A020_columns = X.filter(regex='Input_A[0-9]+_020').columns
+        self.A020_columns = X.filter(regex='Input_A[0-9]_020').columns
 
         self.iforest = IsolationForest(n_estimators=1000)
         self.iforest.fit(X[self.A020_columns])
@@ -125,30 +184,6 @@ class OutlierDetector(TransformerMixin):
         df = X.copy()
 
         df['outlier'] = self.iforest.predict(X[self.A020_columns])
-
-        return df
-
-
-class A020Grouper(TransformerMixin):
-    def __init__(self, n_groups: int = 2):
-        self.n_groups = n_groups
-
-    def fit(self, X, y=None, **fit_params):
-        return self
-
-    def transform(self, X):
-        df = X.copy()
-        # groups = pd.cut(X['A_020_mean'],
-        #                 self.n_groups,
-        #                 labels=list(range(self.n_groups)))
-
-        groups = [1 if val > 2 else 0 for val in X['A_020_mean'].values]
-        groups = tf.one_hot(groups, depth=self.n_groups)
-        groups = pd.DataFrame(
-            groups.numpy(),
-            columns=[f'A_020_group_{i}' for i in range(self.n_groups)])
-        groups.index = df.index
-        df = pd.concat([df, groups], axis=1)
 
         return df
 
@@ -178,28 +213,6 @@ class ClusterTransformer(TransformerMixin, BaseEstimator):
         return df
 
 
-class PcaEmbedder(TransformerMixin, BaseEstimator):
-    def __init__(self, n_comp: int = 2):
-        self.n_comp = n_comp
-
-    def set_params(self, **params):
-        super(PcaEmbedder, self).set_params(**params)
-
-    def fit(self, X, y=None, **fit_params):
-        return self
-
-    def transform(self, X):
-        df = X.copy()
-        self.model = PCA(self.n_comp)
-        comp = self.model.fit_transform(X)
-        comp = pd.DataFrame(comp,
-                            columns=[f'comp_{i}' for i in range(self.n_comp)])
-        comp.index = df.index
-        df = pd.concat([df, comp], axis=1)
-
-        return df
-
-
 class VarianceFeatureSelector(TransformerMixin, BaseEstimator):
     def __init__(self, threshold=0.0):
         self.threshold = threshold
@@ -217,43 +230,6 @@ class VarianceFeatureSelector(TransformerMixin, BaseEstimator):
         df = X.copy()
 
         return df[df.columns[self.selector.get_support(indices=True)]]
-
-
-class NNFeatureEmbedder(TransformerMixin):
-    def __init__(self, dropout_rate=0.3):
-        self.model = KerasRegressor(build_fn=self.create_model, epochs=30)
-
-    @staticmethod
-    def create_model(dropout_rate=0.3):
-        model = tf.keras.Sequential()
-        model.add(tf.keras.layers.Dense(128, activation='relu'))
-        model.add(tf.keras.layers.Dense(128, activation='relu'))
-        model.add(tf.keras.layers.Dropout(dropout_rate))
-        model.add(tf.keras.layers.Dense(64, activation='relu'))
-        model.add(tf.keras.layers.Dense(64, activation='relu'))
-        model.add(tf.keras.layers.Dropout(dropout_rate))
-        model.add(tf.keras.layers.Dense(64, activation='relu'))
-        model.add(tf.keras.layers.Dense(32, activation='relu'))
-        model.add(tf.keras.layers.Dense(32, activation='relu'))
-        model.add(tf.keras.layers.Dense(20))
-        model.compile(loss='mse', optimizer='adam')
-
-        return model
-
-    def fit(self, X, y=None, **fit_params):
-        self.model.fit(X, y, verbose=0)
-
-        return self
-
-    def transform(self, X):
-        df = X.copy()
-        n_cols = pred.shape[1]
-        cols = [f'nn_embed_{i}' for i in range(n_cols)]
-        df_ext = pd.DataFrame(pred, columns=cols)
-        df_ext.index = df.index
-        df_ret = pd.concat([df, df_ext], axis=1)
-
-        return df_ret
 
 
 class ShiftProcessor(TransformerMixin):
@@ -287,32 +263,14 @@ class A020Processor(TransformerMixin):
         return df
 
 
-class ColumnNormalizer(TransformerMixin):
-    def __init__(self):
-        self.normalizer = Normalizer()
-
-    def fit(self, X, y=None, **fit_params):
-        self.normalize_cols = X.filter(regex='Input_A[0-9]_[0-9]+').columns
-
-        return self
-
-    def transform(self, X):
-        df = X.copy()
-        df[self.normalize_cols] = self.normalizer.transform(
-            X[self.normalize_cols])
-
-        return df
-
-
 class DataPreprocessor(Pipeline):
     def __init__(self):
         self.steps = [
-            # ('drop_na_by_threshold', NADropper()),
             ('variance_selector', VarianceFeatureSelector()),
             ('na_annotation', NAAnnotationTransformer()),
-            ('quantization', QuantizationTransformer()),
             ('shift_processor', ShiftProcessor()),
             ('fill_na', FillNATransformer()),
+            ('quantization', QuantizationTransformer()),
             ('a020_processor', A020Processor()),
             ('outlier_detection', OutlierDetector()),
             ('cluster_maker', ClusterTransformer()),
