@@ -29,5 +29,5 @@ python train.py --file_path=train/data/path
 ### Step 4: Test model
 
 ```bash
-python test.py --file_path=test/data/path --model_path=model/path
+python test.py --file_path=test/data/path --model_path=model/path --preprocessor_path=preprocessor/path
 ```
