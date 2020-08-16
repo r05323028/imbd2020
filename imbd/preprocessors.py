@@ -1,16 +1,13 @@
-from sklearn.feature_selection import SelectorMixin
+import numpy as np
+import pandas as pd
+import tensorflow as tf
 from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.impute import SimpleImputer, KNNImputer
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.cluster import KMeans
 from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import Normalizer, OneHotEncoder
-from sklearn.decomposition import PCA
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.pipeline import Pipeline
-import numpy as np
-import pandas as pd
-import tensorflow as tf
-from tensorflow.keras.wrappers.scikit_learn import KerasRegressor
 
 
 class QuantizationTransformer(TransformerMixin):
@@ -87,7 +84,7 @@ class QuantizationTransformer(TransformerMixin):
 
         return self
 
-    def transform(self, X):
+    def transform(self, X, y=None):
         df = X.copy()
         dfs = []
         temp_cols = {}
@@ -120,7 +117,7 @@ class NAAnnotationTransformer(TransformerMixin):
     def fit(self, X, y=None, **fit_params):
         return self
 
-    def transform(self, X):
+    def transform(self, X, y=None):
         df = X.copy()
         df['massive_missing'] = df[[
             f'Input_C_{col:03d}' for col in range(83, 92)
@@ -138,21 +135,13 @@ class FillNATransformer(TransformerMixin):
         float, int -> mean
     '''
     def fit(self, X, y=None, **fit_params):
-        # self.float_columns = X.select_dtypes(include=["float"]).columns
-        # self.category_columns = X.select_dtypes(
-        #     exclude=["int", "float"]).columns
-        # self.mode_imputer = SimpleImputer(strategy='most_frequent')
-        # self.mean_imputer = SimpleImputer(strategy='mean')
-
         # knn imputers
         self.knn_imputer = KNNImputer()
-        # self.category_knn_imputer = KNNImputer()
         self.knn_imputer.fit(X)
-        # self.category_knn_imputer.fit(X[self.category_columns])
 
         return self
 
-    def transform(self, X):
+    def transform(self, X, y=None):
         df = X.copy()
 
         # simple imputer
@@ -180,7 +169,7 @@ class OutlierDetector(TransformerMixin):
 
         return self
 
-    def transform(self, X):
+    def transform(self, X, y=None):
         df = X.copy()
 
         df['outlier'] = self.iforest.predict(X[self.A020_columns])
@@ -200,7 +189,7 @@ class ClusterTransformer(TransformerMixin, BaseEstimator):
         self.model.fit(X)
         return self
 
-    def transform(self, X):
+    def transform(self, X, y=None):
         df = X.copy()
         clusters = self.model.predict(X)
         clusters = tf.one_hot(clusters, depth=self.n_cluster)
@@ -226,7 +215,7 @@ class VarianceFeatureSelector(TransformerMixin, BaseEstimator):
 
         return self
 
-    def transform(self, X):
+    def transform(self, X, y=None):
         df = X.copy()
 
         return df[df.columns[self.selector.get_support(indices=True)]]
@@ -238,7 +227,7 @@ class ShiftProcessor(TransformerMixin):
 
         return self
 
-    def transform(self, X):
+    def transform(self, X, y=None):
         df = X.copy()
         df[self.shift_cols] = np.abs(X[self.shift_cols])
 
@@ -253,7 +242,7 @@ class A020Processor(TransformerMixin):
         self.a020_cols = X.filter(regex='Input_A[0-9]_020').columns
         return self
 
-    def transform(self, X):
+    def transform(self, X, y=None):
         df = X.copy()
         df['A_020_mean'] = X[self.a020_cols].mean(axis=1)
         df['A_020_std'] = X[self.a020_cols].std(axis=1)

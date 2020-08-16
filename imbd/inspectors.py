@@ -15,7 +15,7 @@ class RegressionReport:
 
     @property
     def cv_result(self):
-        return pd.DataFrame(self.model.cv_results_)
+        return self.model.trials_dataframe()
 
     def print_report(self):
         print(f'Best Error (Test CV): {self.model.best_score_}')
