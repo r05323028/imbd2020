@@ -39,7 +39,7 @@ class DataLoader:
 
         if shift_split[2] == 'N':
             res[0] = 0
-        elif shift_split[0] == 'L':
+        elif shift_split[2] == 'L':
             res[0] = -float(shift_split[3])
         else:
             res[0] = float(shift_split[3])
