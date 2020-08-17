@@ -107,7 +107,7 @@ class QuantizationTransformer(TransformerMixin):
         df_one_hot = pd.concat(dfs, axis=1)
         df_ret = pd.concat([df, df_one_hot], axis=1)
         # df_ret = df_ret.drop(intersec, axis=1)
-        return df
+        return df_ret
 
 
 class NAAnnotationTransformer(TransformerMixin):
